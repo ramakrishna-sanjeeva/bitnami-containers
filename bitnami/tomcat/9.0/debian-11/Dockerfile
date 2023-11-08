@@ -27,7 +27,6 @@ SHELL ["/bin/bash", "-o", "pipefail", "-c"]
 RUN install_packages ca-certificates curl libssl1.1 procps xmlstarlet zlib1g
 RUN mkdir -p /tmp/bitnami/pkg/cache/ && cd /tmp/bitnami/pkg/cache/ && \
     COMPONENTS=( \
-      "java-17.0.8-7-5-linux-${OS_ARCH}-debian-11" \
       "tomcat-9.0.82-0-linux-${OS_ARCH}-debian-11" \
       "render-template-1.0.6-2-linux-${OS_ARCH}-debian-11" \
     ) && \
@@ -42,16 +41,21 @@ RUN mkdir -p /tmp/bitnami/pkg/cache/ && cd /tmp/bitnami/pkg/cache/ && \
     done
 RUN apt-get autoremove --purge -y curl && \
     apt-get update && apt-get upgrade -y && \
+    apt-get install -y curl gnupg && \
+    export GNUPGHOME="$(mktemp -d)" && curl -fL https://apt.corretto.aws/corretto.key | gpg --batch --import && gpg --batch --export '6DC3636DAE534049C8B94623A122542AB04F24E3' > /usr/share/keyrings/corretto.gpg && rm -r "$GNUPGHOME" && unset GNUPGHOME && echo "deb [signed-by=/usr/share/keyrings/corretto.gpg] https://apt.corretto.aws stable main" > /etc/apt/sources.list.d/corretto.list && \
+    apt-get update && \
+    apt-get install -y java-1.8.0-amazon-corretto-jdk && \
+    apt-get remove --purge --autoremove -y curl gnupg && \
     apt-get clean && rm -rf /var/lib/apt/lists /var/cache/apt/archives
 RUN chmod g+rwX /opt/bitnami
 
 COPY rootfs /
-RUN /opt/bitnami/scripts/java/postunpack.sh
 RUN /opt/bitnami/scripts/tomcat/postunpack.sh
+RUN sed -i 's#/opt/bitnami/java#/usr/lib/jvm/java-1.8.0-amazon-corretto#g' /opt/bitnami/tomcat/bin/setenv.sh
 ENV APP_VERSION="9.0.82" \
     BITNAMI_APP_NAME="tomcat" \
-    JAVA_HOME="/opt/bitnami/java" \
-    PATH="/opt/bitnami/java/bin:/opt/bitnami/tomcat/bin:/opt/bitnami/common/bin:$PATH"
+    JAVA_HOME="/usr/lib/jvm/java-1.8.0-amazon-corretto" \
+    PATH="/usr/lib/jvm/java-1.8.0-amazon-corretto/bin:/opt/bitnami/tomcat/bin:/opt/bitnami/common/bin:$PATH"
 
 EXPOSE 8009 8080
 
